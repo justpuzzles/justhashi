@@ -1,11 +1,31 @@
 # Just Hashi 1.1: submission runbook
 
-State on 2026-10-21: **merged to `main` and pushed (07ac73e); iOS 1.1 version
-created in ASC with What's New; no build uploaded, nothing submitted.**
-Version id `b3c34cb4-7d78-4836-ada2-d1702c3413dd`, en-US localization
+State on 2026-11-06: **1.1 (5) on branch `fix/1.1-polish` (31fba20), unit
+tests 169/169; archive, upload and attach in progress; description, What's New
+and review notes pushed and read back.** Version id
+`b3c34cb4-7d78-4836-ada2-d1702c3413dd`, en-US localization
 `0ac3c407-e9e3-4b9f-8f00-b1004dbd0180` (copyright 2026 Kai Kunze,
-`AFTER_APPROVAL`; description and keywords carried over from 1.0). `AppStore/SUBMISSION.md` still holds the record facts and the
+`AFTER_APPROVAL`). `AppStore/SUBMISSION.md` still holds the record facts and the
 traps; read it first.
+
+Build 5 adds, on top of build 4 (the Gregorian day key):
+
+- The save slot is written only once a board has a move, or when the board is
+  the saved game itself. Play, look, back out used to replace Continue.
+- Home keeps `today` in state and refreshes it at midnight
+  (`NSCalendarDayChanged`) and on return to the foreground.
+- A hint is dropped when the board changes under it; its Apply described a
+  position that no longer existed.
+- Replaying a Daily from the archive keeps its first time and is not counted
+  as another solve or a best time.
+- The win card scrolls and its sheet can grow to large (accessibility sizes).
+- Paywall buy button text uses `Theme.onBridge` (2.0:1 in dark before).
+- Settings' Unlock everything opens the paywall without a feature, so the
+  headline is "The full game" rather than "The rest of the curriculum".
+- Not changed: the IAP record (APPROVED) still lists five things in its
+  55-character description; editing an approved IAP would send it back through
+  review, so past dailies are named in the app description and review notes
+  instead.
 
 ## What 1.1 is
 
