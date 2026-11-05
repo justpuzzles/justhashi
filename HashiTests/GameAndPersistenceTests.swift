@@ -52,6 +52,18 @@ struct GameLogicTests {
         #expect(game.remaining(at: 0) == -1)
     }
 
+    /// `GameView.persist` writes the save slot only after a move, so that
+    /// opening a board and backing out cannot overwrite the game Continue
+    /// points at. This is the flag it reads.
+    @Test func freshBoardHasNoMovesUntilPlayed() {
+        let game = makeGame(Fixtures.square)
+        #expect(!game.hasMoves)
+        game.cycleBridge(edge: 0)
+        #expect(game.hasMoves)
+        game.undo()
+        #expect(!game.hasMoves)
+    }
+
     @Test func undoRestoresBoard() {
         let game = makeGame(Fixtures.square)
         game.cycleBridge(edge: 0)

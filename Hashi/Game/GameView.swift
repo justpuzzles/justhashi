@@ -116,6 +116,12 @@ struct GameView: View {
         .onChange(of: game.board) {
             persist()
             updateWarnings()
+            // A hint describes the board it was asked on. Once the board moves
+            // (a bridge, an undo) its Apply would place bridges for a position
+            // that no longer exists, so it goes.
+            if hint != nil {
+                withAnimation(Motion.overlay) { hint = nil }
+            }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active {
@@ -157,7 +163,9 @@ struct GameView: View {
                         pendingPaywall = .largeBoards
                         showWinCard = false
                     } : nil)
-                .mediumSheet()
+                // Expandable: at accessibility sizes the recap and the Done
+                // button fell below a fixed half sheet with no way to scroll.
+                .mediumSheet(expandable: true)
         }
     }
 
@@ -220,6 +228,11 @@ struct GameView: View {
 
     private func persist() {
         guard game.phase != .won else { return }
+        // A board left without a move is not worth a save, and saving it would
+        // overwrite the game Continue points at: Play, look, back out, and the
+        // half-finished puzzle was gone. The same board as the saved one still
+        // writes, so undoing back to empty is kept.
+        guard game.hasMoves || progress.savedGame?.generated == game.generated else { return }
         progress.saveGame(game.snapshot)
     }
 
@@ -227,12 +240,16 @@ struct GameView: View {
     private func celebrate() {
         progress.clearSavedGame()
         let time = game.elapsed
+        // A Daily opened again from the archive is a replay: it keeps its first
+        // time (recordDailyCompleted is idempotent) and must not count as
+        // another solve or set a best time it never earned.
+        let isReplay = game.dailyKey.map(progress.hasCompletedDaily) ?? false
         if let day = game.dailyKey {
             progress.recordDailyCompleted(day: day, time: time)
         }
-        wasNewBest = progress.recordSolve(size: boardSize,
-                                          difficulty: game.difficultyForRecords,
-                                          time: time)
+        wasNewBest = isReplay ? false : progress.recordSolve(size: boardSize,
+                                                              difficulty: game.difficultyForRecords,
+                                                              time: time)
         Haptics.win()
         let spoken = "Solved in \(TimeFormatting.spoken(time))" + (wasNewBest ? ", a new best time." : ".")
         Task {

@@ -54,6 +54,9 @@ final class HashiGame {
     // MARK: - Input
 
     var canUndo: Bool { !undoStack.isEmpty }
+    /// Whether the player has done anything on this board. A pristine board
+    /// is not worth a save slot; see `GameView.persist`.
+    var hasMoves: Bool { !undoStack.isEmpty }
 
     func tapIsland(_ island: Int) {
         selected = (selected == island) ? nil : island

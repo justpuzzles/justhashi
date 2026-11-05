@@ -19,6 +19,7 @@ struct WinView: View {
     var body: some View {
         ZStack {
             Theme.surface.ignoresSafeArea()
+            ScrollView {
             VStack(spacing: 18) {
                 ZStack(alignment: .topTrailing) {
                     VStack(spacing: 6) {
@@ -73,6 +74,8 @@ struct WinView: View {
                 .padding(.horizontal, 24)
                 .padding(.bottom, 16)
             }
+            }
+            .scrollBounceBehavior(.basedOnSize)
         }
         .task {
             guard let day = game.dailyKey else { return }

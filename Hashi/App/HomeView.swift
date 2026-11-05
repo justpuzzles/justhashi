@@ -12,8 +12,11 @@ struct HomeView: View {
     /// Restoring the pickers fires their gates; the flag keeps restoration
     /// from being mistaken for a player action.
     @State private var isRestoring = true
+    @Environment(\.scenePhase) private var scenePhase
 
-    private var today: DayKey { DayKey(date: .now) }
+    /// State, not a computed property: `body` is not re-evaluated at midnight,
+    /// so a Home left open overnight kept offering yesterday's Daily.
+    @State private var today = DayKey(date: .now)
 
     var body: some View {
         ZStack {
@@ -50,7 +53,14 @@ struct HomeView: View {
             }
             .scrollBounceBehavior(.basedOnSize)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
+            today = DayKey(date: .now)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { today = DayKey(date: .now) }
+        }
         .onAppear {
+            today = DayKey(date: .now)
             if isRestoring {
                 if let last = progress.lastPlayed {
                     // Still respect the gate, quietly — no sheet. At launch

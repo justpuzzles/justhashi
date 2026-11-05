@@ -36,14 +36,15 @@ struct PaywallView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top, spacing: 12) {
-                Text(context.feature.headline)
+                Text(context.feature?.headline ?? "The full game")
                     .font(Theme.heading)
                     .foregroundStyle(Theme.ink)
                 Spacer(minLength: 0)
                 // The only way out that does not involve buying something.
                 SheetCloseButton()
             }
-            Text(context.feature.pitch)
+            Text(context.feature?.pitch
+                 ?? "Every lesson, every drill, the hints that teach, large boards, past dailies and your stats. One purchase, once.")
                 .font(.subheadline)
                 .foregroundStyle(Theme.inkSoft)
         }
@@ -81,7 +82,7 @@ struct PaywallView: View {
             } label: {
                 HStack {
                     if entitlements.purchaseState == .purchasing {
-                        ProgressView().tint(Theme.island)
+                        ProgressView().tint(Theme.onBridge)
                     } else {
                         // Never hardcode the price — App Review rejects a button
                         // that disagrees with the product's real localized price.
@@ -93,7 +94,8 @@ struct PaywallView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
                 .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.bridge))
-                .foregroundStyle(Theme.island)
+                // `onBridge`, not `island`: island on the pale dark-mode bridge measured 2.0:1.
+                .foregroundStyle(Theme.onBridge)
             }
             .buttonStyle(.hashi)
             // Both controls key off the same flag, so a purchase and a restore
