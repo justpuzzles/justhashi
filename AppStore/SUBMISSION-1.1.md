@@ -75,3 +75,10 @@ The daily schedule and seed are untouched (shipped API).
   registered on the developer account first.
 - **Harder weekend dailies.** The schedule is shipped API (`docs/ENGINEERING.md`
   § Daily & streaks); changing it changes every player's daily.
+
+Screenshots: the 1.0 set stays. `capture_screenshots.py` was run on 2026-11-06
+and produced four "Home" frames that were Gait Pro's History tab (the shared
+iPhone 11 Pro Max simulator still had Gait Pro in front, and the harness does
+not check what it photographs), and no game or lesson frames at all (its
+coordinate taps no longer hit with the Past dailies row on Home). Before the
+next capture: shut the simulator down first, and re-aim the taps.
