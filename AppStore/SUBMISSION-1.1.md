@@ -1,8 +1,17 @@
 # Just Hashi 1.1: submission runbook
 
-State on 2026-11-06: **1.1 (5) on branch `fix/1.1-polish` (31fba20), unit
-tests 169/169; archive, upload and attach in progress; description, What's New
-and review notes pushed and read back.** Version id
+State on 2026-11-06: **READY TO SUBMIT. 1.1 (5) built from `fix/1.1-polish`
+(31fba20, not merged to `main`), 169 unit tests + 8 UI audits green; build 5
+(`4c7ba370-cfe3-4ee1-88af-60b968c405a4`, VALID) attached; description, What's
+New and review notes pushed and read back; review submission
+`587c55e8-bd61-429b-a5ce-70d585cf6453` created with the version as its item
+(Apple's readiness gate passed) and left UNSUBMITTED.** To submit:
+`PATCH reviewSubmissions/587c55e8-bd61-429b-a5ce-70d585cf6453`
+`{"data":{"type":"reviewSubmissions","id":"…","attributes":{"submitted":true}}}`,
+or press Submit for Review in the web UI. Release type is AFTER_APPROVAL.
+Gate trap met: the age rating declaration gained a required `socialMedia`
+attribute (set to false on the pending appInfo `da7290d9-…`, which is also the
+declaration id). Version id
 `b3c34cb4-7d78-4836-ada2-d1702c3413dd`, en-US localization
 `0ac3c407-e9e3-4b9f-8f00-b1004dbd0180` (copyright 2026 Kai Kunze,
 `AFTER_APPROVAL`). `AppStore/SUBMISSION.md` still holds the record facts and the
