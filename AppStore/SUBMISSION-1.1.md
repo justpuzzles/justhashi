@@ -1,11 +1,11 @@
 # Just Hashi 1.1: submission runbook
 
-State on 2026-11-06: **READY TO SUBMIT. 1.1 (5) built from `fix/1.1-polish`
+State on 2026-11-06: **SUBMITTED 06:28 UTC, WAITING_FOR_REVIEW, release AFTER_APPROVAL.** Before that: 1.1 (5) built from `fix/1.1-polish`
 (31fba20, not merged to `main`), 169 unit tests + 8 UI audits green; build 5
 (`4c7ba370-cfe3-4ee1-88af-60b968c405a4`, VALID) attached; description, What's
 New and review notes pushed and read back; review submission
 `587c55e8-bd61-429b-a5ce-70d585cf6453` created with the version as its item
-(Apple's readiness gate passed) and left UNSUBMITTED.** To submit:
+(Apple's readiness gate passed), then submitted.** It was:
 `PATCH reviewSubmissions/587c55e8-bd61-429b-a5ce-70d585cf6453`
 `{"data":{"type":"reviewSubmissions","id":"…","attributes":{"submitted":true}}}`,
 or press Submit for Review in the web UI. Release type is AFTER_APPROVAL.
