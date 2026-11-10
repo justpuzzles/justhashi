@@ -187,18 +187,18 @@ struct PersistenceTests {
         defer { defaults.removePersistentDomain(forName: name) }
 
         let store = ProgressStore(userDefaults: defaults)
-        #expect(store.savedGame == nil)
+        #expect(store.savedGame(.standard) == nil)
         let game = makeGame(Fixtures.square)
         game.cycleBridge(edge: 0)
         store.saveGame(game.snapshot)
         // Visible immediately (observable state, not a defaults read)…
-        #expect(store.savedGame != nil)
+        #expect(store.savedGame(.standard) != nil)
         // …and after "relaunch" (a second store over the same defaults).
         let secondLaunch = ProgressStore(userDefaults: defaults)
-        #expect(secondLaunch.savedGame?.board == game.board)
-        store.clearSavedGame()
-        #expect(store.savedGame == nil)
-        #expect(ProgressStore(userDefaults: defaults).savedGame == nil)
+        #expect(secondLaunch.savedGame(.standard)?.board == game.board)
+        store.clearSavedGame(.standard)
+        #expect(store.savedGame(.standard) == nil)
+        #expect(ProgressStore(userDefaults: defaults).savedGame(.standard) == nil)
     }
 
     @Test func solvesFileUnderRequestedDifficulty() {

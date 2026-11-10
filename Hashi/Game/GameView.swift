@@ -13,7 +13,7 @@ struct GameView: View {
 
     @State private var rippleDistances: [Int: Int]?
     @State private var showWinCard = false
-    @State private var wasNewBest = false
+    @State private var solve: SolveResult?
     @State private var warningIslands: Set<Int> = []
     @State private var hint: Hint?
     /// Set when the win card should hand off to the paywall on its way out.
@@ -158,7 +158,7 @@ struct GameView: View {
                 paywall.present(feature)
             }
         }) {
-            WinView(game: game, isNewBest: wasNewBest,
+            WinView(game: game, solve: solve ?? SolveResult(counted: true, newBestTime: false),
                     onUnlock: offersUnlock ? {
                         pendingPaywall = .largeBoards
                         showWinCard = false
@@ -231,27 +231,24 @@ struct GameView: View {
         // A board left without a move is not worth a save, and saving it would
         // overwrite the game Continue points at: Play, look, back out, and the
         // half-finished puzzle was gone. The same board as the saved one still
-        // writes, so undoing back to empty is kept.
-        guard game.hasMoves || progress.savedGame?.generated == game.generated else { return }
-        progress.saveGame(game.snapshot)
+        // writes, so undoing back to empty is kept. Each game writes only its
+        // own slot: a Daily never replaces the standard game, nor the reverse.
+        let sameBoard = progress.savedGame(game.slot)?.generated == game.generated
+        progress.saveGame(game.snapshot, hasProgress: game.hasMoves || sameBoard)
     }
 
     /// The win: ripple sweeps the network from the last bridge, then the card.
     private func celebrate() {
-        progress.clearSavedGame()
+        progress.clearSavedGame(game.slot)
         let time = game.elapsed
         // A Daily opened again from the archive is a replay: it keeps its first
-        // time (recordDailyCompleted is idempotent) and must not count as
-        // another solve or set a best time it never earned.
-        let isReplay = game.dailyKey.map(progress.hasCompletedDaily) ?? false
-        if let day = game.dailyKey {
-            progress.recordDailyCompleted(day: day, time: time)
-        }
-        wasNewBest = isReplay ? false : progress.recordSolve(size: boardSize,
-                                                              difficulty: game.difficultyForRecords,
-                                                              time: time)
+        // time and must not count as another solve or set a best time it never
+        // earned. `recordWin` decides, from PuzzleKit's DailyRecord.
+        let result = progress.recordWin(size: boardSize, difficulty: game.difficultyForRecords,
+                                        time: time, daily: game.dailyKey)
+        solve = result
         Haptics.win()
-        let spoken = "Solved in \(TimeFormatting.spoken(time))" + (wasNewBest ? ", a new best time." : ".")
+        let spoken = "Solved in \(TimeFormatting.spoken(time))" + (result.newBestTime ? ", a new best time." : ".")
         Task {
             // After the win card takes focus, or its arrival cuts this off.
             try? await Task.sleep(for: .seconds(1.2))

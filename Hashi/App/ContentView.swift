@@ -34,8 +34,8 @@ struct ContentView: View {
                            dailyKey: day)
         case .dailyArchive:
             DailyArchiveView(path: $path)
-        case .resumeGame:
-            ResumeGameView()
+        case .resume(let slot):
+            ResumeGameView(slot: slot)
         case .tutorial(let technique):
             TutorialView(technique: technique)
         case .practice(let technique):
@@ -109,6 +109,7 @@ struct GameLoaderView: View {
 /// clears the save, so the live game would be swapped out for `MissingSaveView`
 /// mid-celebration. The game must outlive its own save. (Kakuro shipped that.)
 struct ResumeGameView: View {
+    let slot: GameSlot
     @Environment(ProgressStore.self) private var progress
 
     @State private var game: HashiGame?
@@ -125,7 +126,7 @@ struct ResumeGameView: View {
         }
         .onAppear {
             guard !resolved else { return }
-            if let snapshot = progress.loadSavedGame() {
+            if let snapshot = progress.savedGame(slot) {
                 game = HashiGame(snapshot: snapshot)
             }
             resolved = true
@@ -142,12 +143,23 @@ struct GameHostView: View {
     }
 }
 
+/// Reached when the save was gone by the time the screen opened (finished on
+/// another path, or cleared). It used to be a sentence with no way out but
+/// the back button.
 struct MissingSaveView: View {
+    @Environment(\.dismiss) private var dismiss
+
     var body: some View {
-        Text("That game is finished. Start a new one from Home.")
-            .font(.subheadline)
-            .foregroundStyle(Theme.inkSoft)
-            .padding()
+        VStack(spacing: 16) {
+            Text("That game is finished. Start a new one from Home.")
+                .font(.subheadline)
+                .foregroundStyle(Theme.inkSoft)
+                .multilineTextAlignment(.center)
+            Button("Back to Home") { dismiss() }
+                .font(.headline)
+                .tint(Theme.bridge)
+        }
+        .padding()
     }
 }
 
@@ -158,4 +170,5 @@ struct MissingSaveView: View {
         .environment(MasteryTracker())
         .environment(EntitlementStore(source: PreviewEntitlementSource(owned: true)))
         .environment(PaywallPresenter())
+        .environment(TodayClock())
 }

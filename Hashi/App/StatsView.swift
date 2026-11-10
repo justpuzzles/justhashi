@@ -5,7 +5,9 @@ struct StatsView: View {
     @Environment(MasteryTracker.self) private var mastery
     @Environment(EntitlementStore.self) private var entitlements
 
-    private var today: DayKey { DayKey(date: .now) }
+    @Environment(TodayClock.self) private var clock
+
+    private var today: DayKey { clock.today }
 
     var body: some View {
         ZStack {
