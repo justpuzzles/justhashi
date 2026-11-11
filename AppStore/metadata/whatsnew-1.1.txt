@@ -4,4 +4,4 @@ Past dailies: every Daily since launch, with your times. Finishing an old one la
 
 The board can now be played with VoiceOver. Each island reads its clue and its bridges, moves and hints are spoken, and text, contrast and touch targets follow your accessibility settings.
 
-Fixed: finishing an older Daily after a newer one no longer resets your streak to 1.
+Fixed: finishing an older Daily after a newer one no longer resets your streak to 1. Opening a new board and backing out without a move no longer replaces the game you had saved. Home now notices midnight and offers the new Daily. A hint is cleared once the board changes under it, so Apply can no longer place bridges for a position that is gone. Playing a past Daily again keeps your first time and no longer counts as another solve. The win card scrolls at large text sizes, and the Unlock button reads clearly in dark mode.

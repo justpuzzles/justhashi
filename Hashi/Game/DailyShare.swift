@@ -3,21 +3,27 @@ import SwiftUI
 /// What a solved Daily shares: a line of text and a card image. Neither gives
 /// anything away. The card draws the islands as bare dots with no clues and no
 /// bridges, so a friend who hasn't played today's board learns nothing from it.
-nonisolated enum DailyShare {
-    static let siteURL = "kaikunze.de/justhashi/"
+///
+/// The text is PuzzleKit's `DailyShare`, the same shape as every other Just
+/// Puzzles game since 1.2; the image card is Hashi's own.
+extension DailyShareCard {
+    /// Printed on the card. The share text carries the full link.
+    nonisolated static let siteURL = "kaikunze.de/justhashi/"
+    nonisolated static let link = URL(string: "https://kaikunze.de/justhashi/")
 
     /// `streak` is nil when the solve didn't extend the chain (an older daily
-    /// finished late): the card then leaves the streak out rather than claim
+    /// finished late): the text then leaves the streak out rather than claim
     /// the current one.
-    static func text(day: DayKey, rows: Int, cols: Int, time: TimeInterval, streak: Int?) -> String {
-        var second = "\(rows)×\(cols) in \(TimeFormatting.clock(time))"
-        if let streak, streak > 1 { second += " · \(streak) day streak" }
-        return "Just Hashi daily, \(dateLabel(day))\n\(second)\n\(siteURL)"
+    nonisolated static func text(day: DayKey, rows: Int, cols: Int, time: TimeInterval,
+                                 streak: Int?, locale: Locale = .current) -> String {
+        DailyShare(game: "Just Hashi", day: day, timeText: TimeFormatting.clock(time),
+                   streak: streak ?? 0, detail: "\(rows)×\(cols)", url: link)
+            .text(locale: locale)
     }
 
-    /// "20 Oct 2026", fixed to English and the Gregorian calendar so the text
-    /// reads the same wherever it is pasted.
-    static func dateLabel(_ day: DayKey) -> String {
+    /// "20 Oct 2026", fixed to English and the Gregorian calendar so the card
+    /// reads the same wherever it is posted.
+    nonisolated static func dateLabel(_ day: DayKey) -> String {
         let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                       "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
         let month = (1...12).contains(day.month) ? months[day.month - 1] : "?"
@@ -41,7 +47,7 @@ struct DailyShareCard: View {
                     .font(.system(size: 26, weight: .bold, design: .rounded))
                     .foregroundStyle(Theme.ink)
                 Spacer()
-                Text(DailyShare.dateLabel(day))
+                Text(Self.dateLabel(day))
                     .font(.system(size: 17, weight: .medium, design: .rounded))
                     .foregroundStyle(Theme.inkSoft)
             }
@@ -72,7 +78,7 @@ struct DailyShareCard: View {
                 .frame(width: 44, height: 44)
                 .rotationEffect(.degrees(-8))
             }
-            Text(DailyShare.siteURL)
+            Text(Self.siteURL)
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(Theme.inkSoft)
         }

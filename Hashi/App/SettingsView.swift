@@ -39,7 +39,8 @@ struct SettingsView: View {
         Section {
             if !entitlements.isUnlocked {
                 Button("Unlock everything") {
-                    paywall.present(.advancedLessons)
+                    // No feature: this door leads with the whole game, not "The rest of the curriculum".
+                    paywall.present()
                 }
             }
             // Apple requires a restore path for non-consumables, and it has to

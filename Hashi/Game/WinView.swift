@@ -5,11 +5,14 @@ import SwiftUI
 /// the win screen teaches.
 struct WinView: View {
     let game: HashiGame
-    let isNewBest: Bool
+    /// What the win recorded: a replayed Daily counts nothing and shares its
+    /// first time.
+    let solve: SolveResult
     /// Set when this board was a taste of something the player doesn't own —
     /// the weekend Daily hands free players a large board.
     var onUnlock: (() -> Void)?
     @Environment(ProgressStore.self) private var progress
+    @Environment(TodayClock.self) private var clock
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dismiss) private var dismiss
 
@@ -19,6 +22,7 @@ struct WinView: View {
     var body: some View {
         ZStack {
             Theme.surface.ignoresSafeArea()
+            ScrollView {
             VStack(spacing: 18) {
                 ZStack(alignment: .topTrailing) {
                     VStack(spacing: 6) {
@@ -28,7 +32,13 @@ struct WinView: View {
                         Text(TimeFormatting.clock(game.elapsed))
                             .numberFont(40, relativeTo: .largeTitle)
                             .foregroundStyle(Theme.bridge)
-                        if isNewBest {
+                        if let first = solve.firstDailyTime {
+                            Text("Already solved, first in \(TimeFormatting.clock(first))")
+                                .font(.subheadline)
+                                .foregroundStyle(Theme.inkSoft)
+                                .accessibilityLabel("Already solved, first in \(TimeFormatting.spoken(first))")
+                        }
+                        if solve.newBestTime {
                             Text("New best time")
                                 .font(.subheadline.weight(.semibold))
                                 .foregroundStyle(Theme.foam)
@@ -73,11 +83,13 @@ struct WinView: View {
                 .padding(.horizontal, 24)
                 .padding(.bottom, 16)
             }
+            }
+            .scrollBounceBehavior(.basedOnSize)
         }
         .task {
             guard let day = game.dailyKey else { return }
             let card = DailyShareCard(puzzle: game.puzzle, day: day,
-                                      time: game.elapsed, streak: sharedStreak(day))
+                                      time: sharedTime, streak: sharedStreak(day))
             let renderer = ImageRenderer(content: card)
             renderer.scale = 3
             if let image = renderer.uiImage {
@@ -109,21 +121,26 @@ struct WinView: View {
         .accessibilityHidden(true)
     }
 
+    /// The streak as Home shows it, not the stored one: after a late or a
+    /// replayed Daily the stored count can belong to a chain already broken.
+    @ViewBuilder
     private func streakLine(_ day: DayKey) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: "flame.fill")
-                .foregroundStyle(Theme.vermillion)
-            Text("\(progress.daily.currentStreak) day streak")
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(Theme.ink)
-            if progress.daily.currentStreak == progress.daily.bestStreak
-                && progress.daily.bestStreak > 1 {
-                Text("· best")
-                    .font(.subheadline)
-                    .foregroundStyle(Theme.inkSoft)
+        let streak = progress.displayStreak(today: clock.today)
+        if streak > 0 {
+            HStack(spacing: 6) {
+                Image(systemName: "flame.fill")
+                    .foregroundStyle(Theme.vermillion)
+                Text("\(streak) day streak")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Theme.ink)
+                if progress.daily.isBestStreak(today: clock.today) {
+                    Text("· best")
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.inkSoft)
+                }
             }
+            .padding(.top, 2)
         }
-        .padding(.top, 2)
     }
 
     /// The streak this solve belongs to, or nil for an older daily finished
@@ -132,10 +149,16 @@ struct WinView: View {
         progress.daily.lastCompleted == day ? progress.daily.currentStreak : nil
     }
 
+    /// A replay shares the first solve's time, the one the Daily is recorded
+    /// with, not the time of this run through.
+    private var sharedTime: TimeInterval {
+        solve.firstDailyTime ?? game.elapsed
+    }
+
     @ViewBuilder
     private func shareButton(_ day: DayKey) -> some View {
-        let text = DailyShare.text(day: day, rows: game.puzzle.rows, cols: game.puzzle.cols,
-                                   time: game.elapsed, streak: sharedStreak(day))
+        let text = DailyShareCard.text(day: day, rows: game.puzzle.rows, cols: game.puzzle.cols,
+                                       time: sharedTime, streak: sharedStreak(day))
         Group {
             if let shareImage {
                 ShareLink(item: shareImage, subject: Text("Just Hashi daily"), message: Text(text),

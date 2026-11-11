@@ -6,14 +6,22 @@ struct HomeView: View {
     @Environment(PuzzleCache.self) private var cache
     @Environment(EntitlementStore.self) private var entitlements
     @Environment(PaywallPresenter.self) private var paywall
+    @Environment(TodayClock.self) private var clock
 
     @State private var size: BoardSize = .small
     @State private var difficulty: Difficulty = .easy
     /// Restoring the pickers fires their gates; the flag keeps restoration
     /// from being mistaken for a player action.
     @State private var isRestoring = true
+    /// Play while a standard game is saved asks first: the new board takes
+    /// that slot as soon as the player draws a bridge on it.
+    @State private var confirmingNewGame = false
+    /// Today's Daily over an unfinished one from an earlier day.
+    @State private var confirmingDaily: DailyReplacement?
 
-    private var today: DayKey { DayKey(date: .now) }
+    /// From the app's `TodayClock`, which follows midnight, time-zone changes
+    /// and the app coming back to the front (1.1 kept its own copy here).
+    private var today: DayKey { clock.today }
 
     var body: some View {
         ZStack {
@@ -28,11 +36,17 @@ struct HomeView: View {
                         .padding(.bottom, 6)
 
                     DailyCard(today: today) {
-                        path.append(.daily(today))
+                        openDaily(today)
                     }
 
-                    if progress.savedGame != nil {
-                        continueCard
+                    if let saved = progress.savedGame(.standard) {
+                        continueCard(.standard, saved)
+                    }
+                    // Today's Daily resumes from the Daily card. An unfinished
+                    // Daily from an earlier day has nowhere else to go.
+                    if let saved = progress.savedGame(.daily), let day = saved.dailyKey,
+                       day != today, !progress.hasCompletedDaily(day) {
+                        continueCard(.daily, saved)
                     }
 
                     newGameCard
@@ -49,6 +63,14 @@ struct HomeView: View {
                 .frame(maxWidth: .infinity)
             }
             .scrollBounceBehavior(.basedOnSize)
+        }
+        .dailyReplacementDialog($confirmingDaily) { path.append(.daily($0)) }
+        .confirmationDialog("Start a new game?", isPresented: $confirmingNewGame,
+                            titleVisibility: .visible) {
+            Button("New game", role: .destructive) { startNewGame() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Your game in progress is replaced once you draw a bridge on the new board.")
         }
         .onAppear {
             if isRestoring {
@@ -81,6 +103,21 @@ struct HomeView: View {
             cache.warm(.standard(size, difficulty))
         }
         .onChange(of: difficulty) { warmIfSettled() }
+    }
+
+    /// Opens a Daily: the saved one if the daily slot holds this day, a fresh
+    /// board otherwise, after asking when that would replace another
+    /// unfinished Daily.
+    private func openDaily(_ day: DayKey) {
+        switch progress.openDaily(day) {
+        case .resume: path.append(.resume(.daily))
+        case .fresh: path.append(.daily(day))
+        case .replacing(let earlier): confirmingDaily = DailyReplacement(day: day, earlier: earlier)
+        }
+    }
+
+    private func startNewGame() {
+        path.append(.game(size: size, difficulty: difficulty))
     }
 
     private func warmIfSettled() {
@@ -132,16 +169,21 @@ struct HomeView: View {
             .frame(width: size * 0.3, height: size * 0.3)
     }
 
-    private var continueCard: some View {
+    private func continueCard(_ slot: GameSlot, _ saved: HashiGame.Snapshot) -> some View {
         Button {
-            path.append(.resumeGame)
+            path.append(.resume(slot))
         } label: {
             HStack {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Continue")
+                    Text(slot == .daily ? "Continue daily" : "Continue")
                         .font(.headline)
                         .foregroundStyle(Theme.ink)
-                    if let saved = progress.savedGame {
+                    HStack(spacing: 6) {
+                        if let day = saved.dailyKey {
+                            Text(day.date().formatted(.dateTime.month(.abbreviated).day()) + " ·")
+                                .font(.footnote)
+                                .foregroundStyle(Theme.inkSoft)
+                        }
                         Text(TimeFormatting.clock(saved.elapsed))
                             .numberFont(14)
                             .foregroundStyle(Theme.inkSoft)
@@ -170,7 +212,11 @@ struct HomeView: View {
             }
             .pickerStyle(.segmented)
             Button {
-                path.append(.game(size: size, difficulty: difficulty))
+                if progress.savedGame(.standard) != nil {
+                    confirmingNewGame = true
+                } else {
+                    startNewGame()
+                }
             } label: {
                 Text("Play")
                     .font(.body.weight(.semibold))

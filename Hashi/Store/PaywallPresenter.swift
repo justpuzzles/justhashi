@@ -5,9 +5,11 @@ import Observation
 /// directly, so a source screen or a promo code can be added later without
 /// changing every call site.
 struct PaywallContext: Identifiable, Equatable {
-    let feature: PaidFeature
+    /// The gate the player hit, or nil when they came from Settings and the
+    /// paywall should lead with the whole game rather than one feature.
+    let feature: PaidFeature?
 
-    var id: String { feature.rawValue }
+    var id: String { feature?.rawValue ?? "all" }
 }
 
 /// Owns paywall presentation for the whole app. One sheet at the root beats
@@ -17,7 +19,7 @@ struct PaywallContext: Identifiable, Equatable {
 final class PaywallPresenter {
     private(set) var context: PaywallContext?
 
-    func present(_ feature: PaidFeature) {
+    func present(_ feature: PaidFeature? = nil) {
         context = PaywallContext(feature: feature)
     }
 

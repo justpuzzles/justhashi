@@ -185,6 +185,43 @@ struct DailySeedTests {
         #expect(g1.puzzle == g2.puzzle)
     }
 
+    /// The seed moved into PuzzleKit in 1.2. Pinned to the value 1.1's own
+    /// FNV-1a produced, and to 1.1's code over a century of days: if either
+    /// fails, every player's Daily changed.
+    @Test func seedMatchesTheShippedHash() {
+        #expect(DailySeed.seed(for: DayKey(year: 2026, month: 1, day: 1)) == 0xbf91a5fda9453bde)
+        var day = DayKey(year: 2026, month: 8, day: 8)
+        for _ in 0..<36_525 {
+            #expect(DailySeed.seed(for: day) == Self.shippedSeed(day))
+            #expect(DailySeed.weekday(of: day) == Self.shippedWeekday(day))
+            day = day.next()
+        }
+    }
+
+    /// Hashi 1.1's `DailySeed.seed`, verbatim.
+    private static func shippedSeed(_ day: DayKey) -> UInt64 {
+        var hash: UInt64 = 0xcbf29ce484222325
+        for byte in "hashi.daily.v1.\(day.isoString)".utf8 {
+            hash ^= UInt64(byte)
+            hash = hash &* 0x100000001b3
+        }
+        return hash
+    }
+
+    /// Hashi 1.1's Zeller weekday, verbatim.
+    private static func shippedWeekday(_ day: DayKey) -> Int {
+        var y = day.year
+        var m = day.month
+        if m < 3 {
+            m += 12
+            y -= 1
+        }
+        let k = y % 100
+        let j = y / 100
+        let h = (day.day + (13 * (m + 1)) / 5 + k + k / 4 + j / 4 + 5 * j) % 7
+        return ((h + 6) % 7) + 1
+    }
+
     @Test func weekdayMatchesFoundationCalendar() {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "UTC")!

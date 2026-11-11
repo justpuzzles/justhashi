@@ -13,7 +13,7 @@ struct GameView: View {
 
     @State private var rippleDistances: [Int: Int]?
     @State private var showWinCard = false
-    @State private var wasNewBest = false
+    @State private var solve: SolveResult?
     @State private var warningIslands: Set<Int> = []
     @State private var hint: Hint?
     /// Set when the win card should hand off to the paywall on its way out.
@@ -116,6 +116,12 @@ struct GameView: View {
         .onChange(of: game.board) {
             persist()
             updateWarnings()
+            // A hint describes the board it was asked on. Once the board moves
+            // (a bridge, an undo) its Apply would place bridges for a position
+            // that no longer exists, so it goes.
+            if hint != nil {
+                withAnimation(Motion.overlay) { hint = nil }
+            }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active {
@@ -152,12 +158,14 @@ struct GameView: View {
                 paywall.present(feature)
             }
         }) {
-            WinView(game: game, isNewBest: wasNewBest,
+            WinView(game: game, solve: solve ?? SolveResult(counted: true, newBestTime: false),
                     onUnlock: offersUnlock ? {
                         pendingPaywall = .largeBoards
                         showWinCard = false
                     } : nil)
-                .mediumSheet()
+                // Expandable: at accessibility sizes the recap and the Done
+                // button fell below a fixed half sheet with no way to scroll.
+                .mediumSheet(expandable: true)
         }
     }
 
@@ -220,21 +228,27 @@ struct GameView: View {
 
     private func persist() {
         guard game.phase != .won else { return }
-        progress.saveGame(game.snapshot)
+        // A board left without a move is not worth a save, and saving it would
+        // overwrite the game Continue points at: Play, look, back out, and the
+        // half-finished puzzle was gone. The same board as the saved one still
+        // writes, so undoing back to empty is kept. Each game writes only its
+        // own slot: a Daily never replaces the standard game, nor the reverse.
+        let sameBoard = progress.savedGame(game.slot)?.generated == game.generated
+        progress.saveGame(game.snapshot, hasProgress: game.hasMoves || sameBoard)
     }
 
     /// The win: ripple sweeps the network from the last bridge, then the card.
     private func celebrate() {
-        progress.clearSavedGame()
+        progress.clearSavedGame(game.slot)
         let time = game.elapsed
-        if let day = game.dailyKey {
-            progress.recordDailyCompleted(day: day, time: time)
-        }
-        wasNewBest = progress.recordSolve(size: boardSize,
-                                          difficulty: game.difficultyForRecords,
-                                          time: time)
+        // A Daily opened again from the archive is a replay: it keeps its first
+        // time and must not count as another solve or set a best time it never
+        // earned. `recordWin` decides, from PuzzleKit's DailyRecord.
+        let result = progress.recordWin(size: boardSize, difficulty: game.difficultyForRecords,
+                                        time: time, daily: game.dailyKey)
+        solve = result
         Haptics.win()
-        let spoken = "Solved in \(TimeFormatting.spoken(time))" + (wasNewBest ? ", a new best time." : ".")
+        let spoken = "Solved in \(TimeFormatting.spoken(time))" + (result.newBestTime ? ", a new best time." : ".")
         Task {
             // After the win card takes focus, or its arrival cuts this off.
             try? await Task.sleep(for: .seconds(1.2))

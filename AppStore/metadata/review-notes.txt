@@ -3,7 +3,7 @@ all progress is stored on the device.
 
 There is one non-consumable in-app purchase, de.kaikunze.hashi.full, which
 unlocks six of the nine lessons, the practice drills, the escalating hints,
-large boards and the stats screen. Free play covers the rules lesson plus the
+large boards, past dailies and the stats screen. Free play covers the rules lesson plus the
 first two techniques, small and medium boards at every difficulty, the daily
 puzzle, and the error check.
 
@@ -26,3 +26,16 @@ silently.
 The app collects no data of any kind. The privacy manifest declares only
 UserDefaults under reason CA92.1, which matches the "Data Not Collected"
 answers in App Privacy.
+
+NEW IN 1.1
+
+Past dailies: the Home screen lists every Daily since launch. Today's Daily is
+free as before; opening an older one is part of the purchase. Finishing an old
+one late records its time and leaves the streak alone.
+
+Share: the win card of a Daily has a Share button. The image is rendered on the
+device (the board's island outline, the date, the time and the streak, no
+clues) and handed to the system share sheet. Nothing is uploaded by the app.
+
+Accessibility: the board is playable with VoiceOver; islands read their clue
+and bridges, moves and hints are spoken.

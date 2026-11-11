@@ -29,8 +29,11 @@ struct DailyArchiveView: View {
     @Environment(ProgressStore.self) private var progress
     @Environment(EntitlementStore.self) private var entitlements
     @Environment(PaywallPresenter.self) private var paywall
+    @Environment(TodayClock.self) private var clock
+    /// Set when opening a past Daily would replace another unfinished one.
+    @State private var confirming: DailyReplacement?
 
-    private var days: [DayKey] { DailyArchive.days(before: DayKey(date: .now)) }
+    private var days: [DayKey] { DailyArchive.days(before: clock.today) }
 
     var body: some View {
         ZStack {
@@ -55,6 +58,7 @@ struct DailyArchiveView: View {
         }
         .navigationTitle("Past dailies")
         .navigationTitleDisplay(.large)
+        .dailyReplacementDialog($confirming) { path.append(.daily($0)) }
     }
 
     private var isOpen: Bool {
@@ -66,7 +70,11 @@ struct DailyArchiveView: View {
         let time = progress.dailyTime(day)
         return Button {
             if isOpen {
-                path.append(.daily(day))
+                switch progress.openDaily(day) {
+                case .resume: path.append(.resume(.daily))
+                case .fresh: path.append(.daily(day))
+                case .replacing(let earlier): confirming = DailyReplacement(day: day, earlier: earlier)
+                }
             } else {
                 paywall.present(.dailyArchive)
             }

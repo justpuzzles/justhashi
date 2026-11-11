@@ -54,6 +54,13 @@ final class HashiGame {
     // MARK: - Input
 
     var canUndo: Bool { !undoStack.isEmpty }
+    /// Whether the player has done anything on this board. A pristine board
+    /// is not worth a save slot; see `GameView.persist`.
+    var hasMoves: Bool { !undoStack.isEmpty }
+
+    /// Which save slot this game lives in: a daily never shares one with a
+    /// standard game, so neither can overwrite the other.
+    var slot: GameSlot { GameSlot(dailyKey: dailyKey) }
 
     func tapIsland(_ island: Int) {
         selected = (selected == island) ? nil : island
@@ -252,6 +259,8 @@ final class HashiGame {
         let elapsed: TimeInterval
         var requestedDifficulty: Difficulty?
         var dailyKey: DayKey?
+
+        var slot: GameSlot { GameSlot(dailyKey: dailyKey) }
     }
 
     var snapshot: Snapshot {

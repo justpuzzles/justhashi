@@ -96,9 +96,9 @@ extension View {
     /// Sheets are half-height cards on iOS, free-floating resizable panels on
     /// macOS, full screen on tvOS.
     @ViewBuilder
-    func mediumSheet() -> some View {
+    func mediumSheet(expandable: Bool = false) -> some View {
         #if os(iOS)
-        presentationDetents([.medium])
+        presentationDetents(expandable ? [.medium, .large] : [.medium])
         #elseif os(tvOS)
         self
         #else

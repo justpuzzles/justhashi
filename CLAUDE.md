@@ -5,7 +5,7 @@ iPhone/iPad puzzle game (iOS 18+) teaching Hashiwokakero (Bridges), modeled on G
 ## Critical invariants
 
 - **Never edit project.pbxproj to add files.** `objectVersion 77` + `PBXFileSystemSynchronizedRootGroup`: every `.swift` file under `Hashi/` and `HashiTests/` joins the build automatically.
-- **`Hashi/Engine/` is pure**: no SwiftUI/UIKit imports, every type `nonisolated` + `Sendable`. It must compile as a CLI: `swiftc -O -o bench Hashi/Engine/*.swift bench/main.swift` (bench output to stderr).
+- **`Hashi/Engine/` is pure**: no SwiftUI/UIKit imports, every type `nonisolated` + `Sendable`. It must compile as a CLI: `swiftc -O -o bench Hashi/Engine/*.swift "$(tools/puzzlekit-sources.sh)"/*.swift bench/main.swift` (bench output to stderr).
 - **`Theme` and `Motion` are `nonisolated` — load-bearing.** `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` project-wide; a `UIColor(dynamicProvider:)` closure that inherits MainActor traps off-main (`EXC_BREAKPOINT`, intermittent, shipped in kakuro once). Guarded by `ThemeIsolationTests`; do not "fix".
 - **No ViewModels.** `@Observable` (never ObservableObject), `@Environment` for services, view state as enums, `.task(id:)` for async effects.
 - Every shipped puzzle is unique-solution AND fully solvable by `LogicalSolver` — enforced inside `HashiGenerator.generate`, not by convention.
@@ -14,7 +14,8 @@ iPhone/iPad puzzle game (iOS 18+) teaching Hashiwokakero (Bridges), modeled on G
 - Paywalled rows stay **tappable** (they present the paywall); only mastery-locked rows are `.disabled`.
 - The Daily puzzle is exempt from the board-size gate — the weekend schedule is `.large` and the Daily is free. See `FeatureGate.isDailyAvailable`.
 - `Technique` enum declaration order is the source of truth for the solver loop, difficulty weights, hint escalation, tutorial sequence, and practice menu.
-- Persistence: save on board change + scene backgrounding + disappear (never phase-change-only); `savedGame` is observable state, not a defaults read in a view body.
+- Persistence: save on board change + scene backgrounding + disappear (never phase-change-only); `savedGame(_:)` is observable state, not a defaults read in a view body.
+- **PuzzleKit (since 1.2)** is a Swift package from github.com/justpuzzles/PuzzleKit, pinned to a revision in the project (`Package.resolved`); a plain clone builds. To work on the kit, drag a local `../PuzzleKit` into the project (Xcode overrides the remote one) or set `PUZZLEKIT=../PuzzleKit` for the engine build; bump the pinned revision when the kit changes. It owns `DayKey`/`DaySeed`, the streak record (`DailyRecord`, still under `hashi.daily.v1`), the two save slots (`SaveSlots`: standard keeps `hashi.saveGame.v1`, daily is `hashi.saveGame.daily.v1`), `TodayClock` and the share text. `App/PuzzleKitExports.swift` re-exports it; engine files import it behind `#if canImport(PuzzleKit)`. Never change the seed prefix, the hash or `isoString`.
 
 ## Build & test
 
@@ -29,7 +30,7 @@ Always pin `OS=` (this machine has 18.x and 26.x runtimes). If simulator cloning
 
 Fast engine iteration without the simulator:
 ```bash
-swiftc -O -o bench Hashi/Engine/*.swift bench/main.swift && ./bench
+swiftc -O -o bench Hashi/Engine/*.swift "$(tools/puzzlekit-sources.sh)"/*.swift bench/main.swift && ./bench
 ```
 
 ## Layout

@@ -7,6 +7,9 @@ struct HashiApp: App {
     @State private var mastery: MasteryTracker
     @State private var entitlements: EntitlementStore
     @State private var paywall = PaywallPresenter()
+    /// Today's day key for every screen, kept current across midnight.
+    @State private var clock = TodayClock()
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         #if DEBUG
@@ -49,9 +52,15 @@ struct HashiApp: App {
                 .environment(mastery)
                 .environment(entitlements)
                 .environment(paywall)
+                .environment(clock)
                 .onAppear {
                     Haptics.enabled = progress.settings.hapticsEnabled
                 }
+        }
+        // No day-change notification reaches a suspended app, so a phone
+        // unlocked the next morning would still be on yesterday.
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { clock.refresh() }
         }
     }
 }
