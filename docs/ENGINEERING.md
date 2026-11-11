@@ -32,7 +32,7 @@ tutorial sequence, and practice menu.
 ```bash
 xcodebuild test -project Hashi.xcodeproj -scheme Hashi -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.5'
 # Engine iteration without the simulator (also proves engine purity):
-swiftc -O -o bench Hashi/Engine/*.swift ../PuzzleKit/Sources/PuzzleKit/*.swift bench/main.swift && ./bench   # smoke|calibrate|audit|time
+swiftc -O -o bench Hashi/Engine/*.swift "$(tools/puzzlekit-sources.sh)"/*.swift bench/main.swift && ./bench   # smoke|calibrate|audit|time
 ```
 
 Always pin `OS=` (18.x and 26.x runtimes coexist here). Simulator cloning
