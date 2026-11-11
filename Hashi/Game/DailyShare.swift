@@ -15,7 +15,7 @@ extension DailyShareCard {
     /// finished late): the text then leaves the streak out rather than claim
     /// the current one.
     nonisolated static func text(day: DayKey, rows: Int, cols: Int, time: TimeInterval,
-                                 streak: Int?, locale: Locale = .current) -> String {
+                                 streak: Int?, locale: Locale = DailyShare.appLocale) -> String {
         DailyShare(game: "Just Hashi", day: day, timeText: TimeFormatting.clock(time),
                    streak: streak ?? 0, detail: "\(rows)×\(cols)", url: link)
             .text(locale: locale)
