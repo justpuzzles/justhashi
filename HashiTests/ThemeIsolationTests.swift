@@ -1,3 +1,5 @@
+#if canImport(UIKit)
+// UIKit-based checks; the Mac test run (no UIKit) skips this file.
 import Foundation
 import SwiftUI
 import Testing
@@ -146,3 +148,4 @@ private nonisolated func rgba(_ color: UIColor) -> [CGFloat] {
                 "Theme must stay nonisolated or its color provider traps on the render thread")
     }
 }
+#endif

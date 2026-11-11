@@ -38,6 +38,11 @@ struct SeaBackground: View {
                 WaveField()
             }
         }
+        #if os(visionOS)
+        // A solid field blocks the room and ignores its light. Translucent,
+        // the sea tints the window's glass instead of replacing it.
+        .opacity(0.62)
+        #endif
         .ignoresSafeArea()
     }
 }

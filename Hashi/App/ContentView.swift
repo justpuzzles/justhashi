@@ -12,6 +12,16 @@ struct ContentView: View {
                 }
         }
         .tint(Theme.bridge)
+        #if DEBUG
+        // `-HashiOpenGame` opens straight onto a small easy board, for
+        // screenshots and for platforms where a harness cannot click (the
+        // Mac without Accessibility access). DEBUG only, string included.
+        .onAppear {
+            if ProcessInfo.processInfo.arguments.contains("-HashiOpenGame"), path.isEmpty {
+                path = [.game(size: .small, difficulty: .easy)]
+            }
+        }
+        #endif
         // One paywall for the whole app, rooted above the NavigationStack so it
         // presents identically from Home and from any pushed destination. The
         // binding is manual because `context` is private(set): the getter reads

@@ -17,6 +17,12 @@ iPhone/iPad puzzle game (iOS 18+) teaching Hashiwokakero (Bridges), modeled on G
 - Persistence: save on board change + scene backgrounding + disappear (never phase-change-only); `savedGame(_:)` is observable state, not a defaults read in a view body.
 - **PuzzleKit (since 1.2)** is a Swift package from github.com/justpuzzles/PuzzleKit, pinned to a revision in the project (`Package.resolved`); a plain clone builds. To work on the kit, drag a local `../PuzzleKit` into the project (Xcode overrides the remote one) or set `PUZZLEKIT=../PuzzleKit` for the engine build; bump the pinned revision when the kit changes. It owns `DayKey`/`DaySeed`, the streak record (`DailyRecord`, still under `hashi.daily.v1`), the two save slots (`SaveSlots`: standard keeps `hashi.saveGame.v1`, daily is `hashi.saveGame.daily.v1`), `TodayClock` and the share text. `App/PuzzleKitExports.swift` re-exports it; engine files import it behind `#if canImport(PuzzleKit)`. Never change the seed prefix, the hash or `isoString`.
 
+- **Mac, Apple TV and Vision Pro (branch `multiplatform`, 2026-11-12).** One target, `SDKROOT = auto`, as in Kakuro. Designed per platform (apple-skills `macos` and `visionos`, Kakuro's tvOS lessons), not windowed iPad:
+  - *Mac*: drag with the mouse as on iPad, hover rings the island under the pointer, and the keyboard plays (`BoardKeys.swift`: arrows move a cursor, Space/Return picks an island up, arrows then draw bridges, Esc puts it down). Keys come from an `NSEvent` monitor, never SwiftUI focus (a focus-based board drops every key). Menu bar: Undo Bridge ⌘Z, Game › Hint ⇧⌘H (⌘H is the system's Hide) via `GameCommands` + `focusedSceneValue`. Window 1100×820, min 720×600. Sandboxed (`Hashi-macOS.entitlements`).
+  - *Apple TV*: islands are focus stops; Select picks one up and it becomes the only focus stop, so arrows draw bridges (`onMoveCommand`) and cannot walk off; Select/Menu put it down. Wide layout: board full height, clock/Hint/Undo/guide in a column (a toolbar is a focus trap on tvOS). No share sheet. Islands 0.42 of a pitch.
+  - *Vision Pro*: the sea is translucent over the window's glass; every island and `.hashi` button has the system hover highlight and islands a ≥60pt target; window opens wide (1180×860); header type a size up.
+  - Icons: `tools/icon/generate_platform_icons.py` (TV layers, Vision layers, Mac rounded tiles) from the iOS drawing. `-HashiOpenGame` (DEBUG) opens a small board, for platforms a harness cannot click.
+
 ## Build & test
 
 ```bash
@@ -24,6 +30,11 @@ xcodebuild -project Hashi.xcodeproj -scheme Hashi -destination 'platform=iOS Sim
 xcodebuild test -project Hashi.xcodeproj -scheme Hashi -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.5'
 # iPad
 xcodebuild test -project Hashi.xcodeproj -scheme Hashi -destination 'platform=iOS Simulator,name=iPad Pro 11-inch (M4),OS=18.5'
+# Mac (unit tests; the UIKit-only files skip themselves)
+xcodebuild test -project Hashi.xcodeproj -scheme Hashi -destination 'platform=macOS' -only-testing:HashiTests
+# Apple TV / Vision Pro builds
+xcodebuild -project Hashi.xcodeproj -scheme Hashi -destination 'generic/platform=tvOS Simulator' build
+xcodebuild -project Hashi.xcodeproj -scheme Hashi -destination 'generic/platform=visionOS Simulator' build
 ```
 
 Always pin `OS=` (this machine has 18.x and 26.x runtimes). If simulator cloning fails ("stuck in creation state"): `-destination 'id=<udid>' -parallel-testing-enabled NO`.

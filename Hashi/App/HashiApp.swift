@@ -56,7 +56,20 @@ struct HashiApp: App {
                 .onAppear {
                     Haptics.enabled = progress.settings.hapticsEnabled
                 }
+                #if os(macOS)
+                // Below this a large board and its header stop fitting.
+                .frame(minWidth: 720, minHeight: 600)
+                #endif
         }
+        #if os(macOS)
+        // Board-shaped on a desk, not AppKit's short default window.
+        .defaultSize(width: 1100, height: 820)
+        .commands { GameCommands() }
+        #elseif os(visionOS)
+        // Wide beats tall in a headset: turning the head left and right is
+        // easier than up and down. Room for the board beside its chrome.
+        .defaultSize(width: 1180, height: 860)
+        #endif
         // No day-change notification reaches a suspended app, so a phone
         // unlocked the next morning would still be on yesterday.
         .onChange(of: scenePhase) { _, phase in

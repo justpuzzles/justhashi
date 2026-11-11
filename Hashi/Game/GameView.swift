@@ -43,50 +43,54 @@ struct GameView: View {
     var body: some View {
         ZStack {
             SeaBackground(waves: true)
+            #if os(tvOS)
+            // Wide, not stacked: a television has width to spare and no
+            // height, so the board takes the full height and the chrome sits
+            // in a column beside it.
+            HStack(alignment: .center, spacing: 60) {
+                remoteSidebar
+                board
+            }
+            .padding(.horizontal, 80)
+            .padding(.vertical, 40)
+            #else
             VStack(spacing: 0) {
                 header
                 Spacer(minLength: 0)
-                BoardView(
-                    game: game,
-                    rippleDistances: rippleDistances,
-                    highlightedIslands: Set(hint?.highlightIslands ?? []),
-                    highlightedEdges: Set(hint?.highlightEdges ?? []),
-                    warningIslands: warningIslands,
-                    onTapIsland: { game.tapIsland($0) },
-                    onCycleEdge: { cycle($0) }
-                )
-                .frame(maxWidth: boardSide, maxHeight: boardSide)
-                .padding(.horizontal, 8)
+                board
                 Spacer(minLength: 0)
             }
+            #endif
         }
         .navigationTitleDisplay(.inline)
         .swipeBackDisabled()
+        #if !os(tvOS)
         .toolbar {
             ToolbarItem(placement: .primaryTrailing) {
                 HStack(spacing: 2) {
                     Button {
-                        withAnimation(Motion.overlay) {
-                            hint = hintEngine.hint(for: game, mastery: mastery,
-                                                   showErrors: progress.settings.showErrors,
-                                                   policy: hintPolicy)
-                        }
+                        requestHint()
                     } label: {
                         Image(systemName: "lightbulb")
                     }
                     .disabled(game.phase != .playing)
                     .accessibilityLabel("Hint")
+                    .help("Hint (⇧⌘H)")
                     Button {
-                        game.undo()
-                        persist()
+                        undo()
                     } label: {
                         Image(systemName: "arrow.uturn.backward")
                     }
                     .disabled(!game.canUndo || game.phase != .playing)
                     .accessibilityLabel("Undo")
+                    .help("Undo the last bridge (⌘Z)")
                 }
             }
         }
+        #endif
+        .focusedSceneValue(\.boardActions, BoardActions(
+            canUndo: game.canUndo && game.phase == .playing, undo: undo,
+            canHint: game.phase == .playing, hint: requestHint))
         .safeAreaInset(edge: .bottom) {
             if let hint {
                 HintBanner(
@@ -169,17 +173,85 @@ struct GameView: View {
         }
     }
 
+    private var board: some View {
+        BoardView(
+            game: game,
+            rippleDistances: rippleDistances,
+            highlightedIslands: Set(hint?.highlightIslands ?? []),
+            highlightedEdges: Set(hint?.highlightEdges ?? []),
+            warningIslands: warningIslands,
+            claimsFocus: true,
+            onTapIsland: { game.tapIsland($0) },
+            onCycleEdge: { cycle($0) }
+        )
+        #if os(tvOS)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        #else
+        .frame(maxWidth: boardSide, maxHeight: boardSide)
+        .padding(.horizontal, 8)
+        #endif
+    }
+
+    #if os(tvOS)
+    /// The column beside the board: clock, size, Hint and Undo, and how the
+    /// remote plays.
+    private var remoteSidebar: some View {
+        VStack(alignment: .leading, spacing: 28) {
+            Text(TimeFormatting.clock(game.elapsed))
+                .numberFont(Metrics.headerNumber)
+                .foregroundStyle(Theme.inkSoft)
+                .accessibilityLabel("Time \(TimeFormatting.spoken(game.elapsed))")
+            Text("\(boardSize.label) · \(game.difficultyForRecords.label)")
+                .font(.title3)
+                .foregroundStyle(Theme.inkSoft)
+            remoteControls
+            Spacer()
+            remoteGuide
+        }
+        .frame(width: 480, alignment: .leading)
+    }
+
+    /// How the remote plays.
+    private var remoteGuide: some View {
+        Text(game.selected == nil
+             ? "Select picks up an island.\nMenu goes back."
+             : "Press a direction to draw a bridge, again for a double.\nSelect or Menu puts it down.")
+            .font(.title3)
+            .foregroundStyle(Theme.inkSoft)
+            .fixedSize(horizontal: false, vertical: true)
+            .animation(nil, value: game.selected)
+    }
+
+    /// Hint and Undo in the content, not the toolbar: on tvOS a toolbar is
+    /// its own focus container that focus can climb into and not come back
+    /// from (Just Kakuro). Off while an island is picked up, so an arrow can
+    /// only ever draw a bridge.
+    private var remoteControls: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Button { requestHint() } label: {
+                Label("Hint", systemImage: "lightbulb")
+            }
+            .disabled(game.phase != .playing)
+            Button { undo() } label: {
+                Label("Undo", systemImage: "arrow.uturn.backward")
+            }
+            .disabled(!game.canUndo || game.phase != .playing)
+        }
+        .disabled(game.selected != nil)
+    }
+    #endif
+
     private var header: some View {
         HStack {
             Text(TimeFormatting.clock(game.elapsed))
-                .numberFont(17)
+                .numberFont(Metrics.headerNumber)
                 .foregroundStyle(Theme.inkSoft)
                 .accessibilityLabel("Time \(TimeFormatting.spoken(game.elapsed))")
             Spacer()
             // Size first, then difficulty — the same order the Daily card and
             // Stats use. Difficulty is the *requested* band, matching records.
             Text("\(boardSize.label) · \(game.difficultyForRecords.label)")
-                .font(.footnote)
+                .font(Metrics.largeHeader ? .title3.weight(.medium) : .footnote)
                 .foregroundStyle(Theme.inkSoft)
         }
         .padding(.horizontal, 20)
@@ -194,6 +266,19 @@ struct GameView: View {
         case ...10: .medium
         default: .large
         }
+    }
+
+    private func requestHint() {
+        withAnimation(Motion.overlay) {
+            hint = hintEngine.hint(for: game, mastery: mastery,
+                                   showErrors: progress.settings.showErrors,
+                                   policy: hintPolicy)
+        }
+    }
+
+    private func undo() {
+        game.undo()
+        persist()
     }
 
     private func cycle(_ edge: Int) {

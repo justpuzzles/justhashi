@@ -26,6 +26,30 @@ nonisolated enum Metrics {
     static let stretchesSegments = true
     #endif
 
+    /// The cursor island grows a little: from across the room a dashed ring
+    /// alone does not find the eye.
+    #if os(tvOS)
+    static let liftsCursor = true
+    #else
+    static let liftsCursor = false
+    #endif
+
+    #if os(tvOS)
+    static let isTelevision = true
+    static let headerNumber: CGFloat = 34
+    static let largeHeader = true
+    #elseif os(visionOS)
+    static let isTelevision = false
+    /// A window read at a distance: the game header runs a size up, and
+    /// heavier, as visionOS type does.
+    static let headerNumber: CGFloat = 24
+    static let largeHeader = true
+    #else
+    static let isTelevision = false
+    static let headerNumber: CGFloat = 17
+    static let largeHeader = false
+    #endif
+
     /// Minimum comfortable island hit target.
     static let islandHitTarget: CGFloat = 40
 
@@ -33,7 +57,13 @@ nonisolated enum Metrics {
     /// far more room than the reading column, and a 560pt board marooned in a
     /// 1024pt screen reads as a phone app someone stretched.
     static func boardWidth(regularWidth: Bool) -> CGFloat {
-        regularWidth ? 760 : column
+        #if os(tvOS)
+        // A television is regular width too, but 760pt of 1920 left the
+        // board under half the screen with islands too small for the sofa.
+        return 980
+        #else
+        return regularWidth ? 760 : column
+        #endif
     }
 
     /// Cell pitch ceiling. Without a bigger cap on iPad, a 3×3 lesson board
@@ -65,6 +95,12 @@ struct HashiButtonStyle: ButtonStyle {
                         radius: isFocused ? 20 : 0, y: isFocused ? 8 : 0)
                 .opacity(configuration.isPressed ? 0.75 : 1)
                 .animation(Motion.selection, value: isFocused)
+                #if os(visionOS)
+                // Every interactive element gets the gaze highlight, and only
+                // those; a custom style otherwise has none at all.
+                .contentShape(.hoverEffect, RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .hoverEffect(.highlight)
+                #endif
         }
     }
 }

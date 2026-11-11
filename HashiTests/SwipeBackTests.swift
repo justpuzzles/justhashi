@@ -1,3 +1,5 @@
+#if os(iOS)
+// UIKit-based checks; the Mac test run (no UIKit) skips this file.
 import Foundation
 import Testing
 import UIKit
@@ -75,3 +77,4 @@ struct SwipeBackTests {
         }
     }
 }
+#endif

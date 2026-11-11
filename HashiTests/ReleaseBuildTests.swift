@@ -1,3 +1,5 @@
+#if canImport(UIKit)
+// UIKit-based checks; the Mac test run (no UIKit) skips this file.
 import Foundation
 import Testing
 @testable import Hashi
@@ -162,3 +164,4 @@ import Testing
         }
     }
 }
+#endif

@@ -21,6 +21,9 @@ struct BoardView: View {
     var highlightedIslands: Set<Int> = []
     var highlightedEdges: Set<Int> = []
     var warningIslands: Set<Int> = []
+    /// Apple TV: the board takes focus when it appears (a game). Lessons lead
+    /// with their text, so their boards leave focus to the screen.
+    var claimsFocus = false
     var onTapIsland: (Int) -> Void
     var onCycleEdge: (Int) -> Void
 
@@ -30,6 +33,14 @@ struct BoardView: View {
     @State private var ghostEdge: Int?
     @State private var rejectedIsland: Int?
     @State private var entranceDone = false
+    /// Keyboard and remote cursor: the island the arrows are on. Separate from
+    /// `game.selected`, which means "picked up, arrows now draw bridges".
+    @State private var cursor: Int?
+    /// Pointer hover on the Mac, and the gaze highlight's twin for drawing.
+    @State private var hovered: Int?
+    #if os(tvOS)
+    @FocusState private var focusedIsland: Int?
+    #endif
 
     var body: some View {
         GeometryReader { proxy in
@@ -41,10 +52,30 @@ struct BoardView: View {
                 bridgeCanvas(layout)
                 islands(layout)
             }
+            #if os(tvOS)
+            // No pointer and no drag on a television: each island is a focus
+            // stop (see `islands`), and the remote does the rest.
+            .focusSection()
+            #else
             .contentShape(Rectangle())
             .gesture(boardGesture(layout))
+            #endif
+            #if os(macOS)
+            .onContinuousHover { phase in
+                switch phase {
+                case .active(let point): hovered = layout.island(at: point, in: game.puzzle)
+                case .ended: hovered = nil
+                }
+            }
+            .macBoardKeys { key in handle(key) }
+            #endif
         }
         .onAppear {
+            #if os(tvOS)
+            if claimsFocus {
+                focusedIsland = game.selected ?? game.puzzle.islands.first?.id
+            }
+            #endif
             if reduceMotion {
                 entranceDone = true
             } else {
@@ -124,6 +155,7 @@ struct BoardView: View {
                 game: game,
                 radius: layout.islandRadius,
                 isSelected: game.selected == island.id,
+                isCursor: cursorShown(island.id),
                 isHighlighted: highlightedIslands.contains(island.id),
                 isWarning: warningIslands.contains(island.id),
                 isRejected: rejectedIsland == island.id,
@@ -139,9 +171,76 @@ struct BoardView: View {
                         game.puzzle.edges[edge], before: before, game: game))
                 }
             )
+            #if os(tvOS)
+            // Focus is the cursor. While an island is picked up, it is the
+            // only focus stop on the board, so an arrow cannot walk off it:
+            // it draws a bridge instead (`onMoveCommand`).
+            .focusable(game.selected == nil || game.selected == island.id)
+            .focused($focusedIsland, equals: island.id)
+            .onTapGesture { onTapIsland(island.id) }
+            .onMoveCommand(perform: game.selected == island.id ? { direction in
+                draw(from: island.id, toward: Direction(direction))
+            } : nil)
+            .onExitCommand(perform: game.selected == island.id ? { game.selected = nil } : nil)
+            #elseif os(visionOS)
+            // Eyes target, hands confirm: every island gets the system hover
+            // highlight, and a hit area of at least 60pt around the disc.
+            .frame(minWidth: 60, minHeight: 60)
+            .contentShape(.hoverEffect, Circle())
+            .hoverEffect(.highlight)
+            #endif
             .position(layout.point(for: island.position))
         }
+        #if os(tvOS)
+        .onChange(of: focusedIsland) { _, island in cursor = island }
+        #endif
     }
+
+    // MARK: - Keyboard and remote
+
+    private func cursorShown(_ island: Int) -> Bool {
+        #if os(tvOS)
+        focusedIsland == island && game.selected != island
+        #else
+        (cursor == island || hovered == island) && game.selected != island
+        #endif
+    }
+
+    /// Draws (or cycles) the bridge from `island` toward `direction`, or
+    /// shakes the island when there is no corridor or it is blocked.
+    private func draw(from island: Int, toward direction: Direction) {
+        if let edge = game.dragTarget(from: island, direction: direction) {
+            onCycleEdge(edge)
+        } else {
+            reject(island)
+        }
+    }
+
+    #if os(macOS)
+    /// Arrows move the cursor; Space or Return picks the island up, after
+    /// which arrows draw bridges from it; Escape puts it down.
+    private func handle(_ key: BoardKey) -> Bool {
+        guard game.phase == .playing else { return false }
+        switch key {
+        case .arrow(let direction):
+            if let picked = game.selected {
+                draw(from: picked, toward: direction)
+            } else {
+                let from = cursor ?? hovered
+                cursor = from.flatMap { game.puzzle.neighbour(of: $0, toward: direction) }
+                    ?? from ?? game.puzzle.islands.first?.id
+            }
+        case .pick:
+            guard let island = game.selected ?? cursor ?? hovered else { return false }
+            onTapIsland(island)
+            cursor = island
+        case .drop:
+            guard game.selected != nil else { return false }
+            game.selected = nil
+        }
+        return true
+    }
+    #endif
 
     private func entranceDelay(_ island: Island, layout: BoardLayout) -> TimeInterval {
         guard !reduceMotion else { return 0 }
@@ -156,6 +255,7 @@ struct BoardView: View {
 
     // MARK: - Gesture
 
+    #if !os(tvOS)
     private func boardGesture(_ layout: BoardLayout) -> some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
@@ -217,6 +317,8 @@ struct BoardView: View {
             }
     }
 
+    #endif
+
     private func reject(_ island: Int) {
         Haptics.error()
         rejectedIsland = island
@@ -232,6 +334,8 @@ private struct IslandView: View {
     let game: HashiGame
     let radius: CGFloat
     let isSelected: Bool
+    /// The keyboard or remote cursor (or the Mac pointer) is on this island.
+    var isCursor: Bool = false
     let isHighlighted: Bool
     let isWarning: Bool
     let isRejected: Bool
@@ -282,13 +386,20 @@ private struct IslandView: View {
                 Circle()
                     .stroke(Theme.bridge, lineWidth: Metrics.selectionRing)
                     .padding(-max(2.5, radius * 0.16))
+            } else if isCursor {
+                // Lighter than the selection: "here", not "picked up".
+                Circle()
+                    .stroke(Theme.bridge.opacity(0.55),
+                            style: StrokeStyle(lineWidth: Metrics.selectionRing, dash: [4, 3]))
+                    .padding(-max(2.5, radius * 0.16))
             }
             Text("\(displayedNumber)")
                 .font(Theme.islandFont(size: radius * 1.05))
                 .foregroundStyle(overfilled ? Theme.vermillionOnIsland : Theme.inkOnIsland)
         }
         .frame(width: radius * 2, height: radius * 2)
-        .scaleEffect(settleScale)
+        .scaleEffect(settleScale * (isCursor && Metrics.liftsCursor ? 1.12 : 1))
+        .animation(Motion.selection, value: isCursor)
         .offset(x: isRejected && !reduceMotion ? 4 : 0)
         .opacity(entranceDone ? (satisfied && !isSelected ? 0.82 : 1) : 0)
         .offset(y: entranceDone ? 0 : 10)

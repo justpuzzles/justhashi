@@ -92,9 +92,15 @@ struct WinView: View {
                                       time: sharedTime, streak: sharedStreak(day))
             let renderer = ImageRenderer(content: card)
             renderer.scale = 3
+            #if os(macOS)
+            if let image = renderer.nsImage {
+                shareImage = Image(nsImage: image)
+            }
+            #elseif !os(tvOS)
             if let image = renderer.uiImage {
                 shareImage = Image(uiImage: image)
             }
+            #endif
         }
         .onAppear {
             if reduceMotion {
@@ -155,8 +161,10 @@ struct WinView: View {
         solve.firstDailyTime ?? game.elapsed
     }
 
+    /// Apple TV has no share sheet: nothing to send a result from a sofa to.
     @ViewBuilder
     private func shareButton(_ day: DayKey) -> some View {
+        #if !os(tvOS)
         let text = DailyShareCard.text(day: day, rows: game.puzzle.rows, cols: game.puzzle.cols,
                                        time: sharedTime, streak: sharedStreak(day))
         Group {
@@ -175,6 +183,7 @@ struct WinView: View {
         .tint(Theme.bridge)
         .padding(.top, 4)
         .accessibilityLabel("Share result")
+        #endif
     }
 
     /// What this puzzle exercised — each row a door back into the lesson.

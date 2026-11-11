@@ -38,6 +38,10 @@ struct DailyShareTests {
         let card = DailyShareCard(puzzle: Fixtures.crossing, day: day, time: 100, streak: 3)
         let renderer = ImageRenderer(content: card)
         renderer.scale = 1
+        #if os(macOS)
+        #expect(renderer.nsImage != nil)   // the Mac's share image comes from here
+        #else
         #expect(renderer.uiImage != nil)
+        #endif
     }
 }

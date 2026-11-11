@@ -62,7 +62,10 @@ nonisolated struct BoardLayout: Equatable {
                          y: (available.height - boardSize.height) / 2)
     }
 
-    var islandRadius: CGFloat { pitch * 0.38 }
+    /// 0.38 of a pitch; a little more on a television, where the board is
+    /// height-bound and the discs are read from across the room. Adjacent
+    /// islands still keep 0.16 of a pitch of water for a bridge.
+    var islandRadius: CGFloat { pitch * (Metrics.isTelevision ? 0.42 : 0.38) }
 
     func point(for position: GridPosition) -> CGPoint {
         let inset = Self.marginCells / 2
