@@ -16,9 +16,22 @@ struct ContentView: View {
         // `-HashiOpenGame` opens straight onto a small easy board, for
         // screenshots and for platforms where a harness cannot click (the
         // Mac without Accessibility access). DEBUG only, string included.
+        // `-HashiOpen medium|learn|lesson|drill` opens other screens the same
+        // way, for the store screenshots on every platform.
         .onAppear {
-            if ProcessInfo.processInfo.arguments.contains("-HashiOpenGame"), path.isEmpty {
+            let arguments = ProcessInfo.processInfo.arguments
+            guard path.isEmpty else { return }
+            if arguments.contains("-HashiOpenGame") {
                 path = [.game(size: .small, difficulty: .easy)]
+            } else if let flag = arguments.firstIndex(of: "-HashiOpen"),
+                      arguments.indices.contains(flag + 1) {
+                switch arguments[flag + 1] {
+                case "medium": path = [.game(size: .medium, difficulty: .medium)]
+                case "learn": path = [.learn]
+                case "lesson": path = [.learn, .tutorial(.fullIsland)]
+                case "drill": path = [.practiceMenu, .practice(.onlyNeighbor)]
+                default: break
+                }
             }
         }
         #endif

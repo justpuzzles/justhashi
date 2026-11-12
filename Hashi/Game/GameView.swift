@@ -127,6 +127,17 @@ struct GameView: View {
             if progress.settings.autoCompleteForced {
                 game.autoCompleteForcedIslands()
             }
+            #if DEBUG
+            // `-HashiHalfSolved`: the first half of the solution's bridges, so a
+            // store screenshot shows a game under way. DEBUG only.
+            if ProcessInfo.processInfo.arguments.contains("-HashiHalfSolved"),
+               game.board.bridges.allSatisfy({ $0 == 0 }) {
+                let placed = game.puzzle.edges.filter { game.puzzle.solution[$0.id] > 0 }
+                for edge in placed.prefix(placed.count / 2) {
+                    for _ in 0..<game.puzzle.solution[edge.id] { _ = game.cycleBridge(edge: edge.id) }
+                }
+            }
+            #endif
         }
         .onDisappear {
             if game.phase != .won { persist() }
