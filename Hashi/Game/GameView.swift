@@ -88,9 +88,13 @@ struct GameView: View {
             }
         }
         #endif
+        #if os(macOS)
+        // The menu bar's Undo and Hint act on this game. Mac only: nowhere
+        // else has a menu bar to read it.
         .focusedSceneValue(\.boardActions, BoardActions(
             canUndo: game.canUndo && game.phase == .playing, undo: undo,
             canHint: game.phase == .playing, hint: requestHint))
+        #endif
         .safeAreaInset(edge: .bottom) {
             if let hint {
                 HintBanner(

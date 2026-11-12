@@ -3,11 +3,19 @@ import SwiftUI
 /// What the board screen offers the menu bar. Published by `GameView` with
 /// `focusedSceneValue`, so the menu items act on the game in the front window
 /// and grey out when no board is showing.
-struct BoardActions {
+struct BoardActions: Equatable {
     var canUndo: Bool
     var undo: () -> Void
     var canHint: Bool
     var hint: () -> Void
+
+    /// By the flags alone. The closures are new on every redraw, and a
+    /// focused value that never compares equal is republished on every
+    /// redraw; the board screen then never went idle (UI tests timed out
+    /// waiting for it).
+    static func == (a: BoardActions, b: BoardActions) -> Bool {
+        a.canUndo == b.canUndo && a.canHint == b.canHint
+    }
 }
 
 extension FocusedValues {
