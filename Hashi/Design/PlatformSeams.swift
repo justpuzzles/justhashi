@@ -69,7 +69,13 @@ nonisolated enum Metrics {
     /// Cell pitch ceiling. Without a bigger cap on iPad, a 3×3 lesson board
     /// would stay phone-sized in the middle of a large screen.
     static func cellCap(regularWidth: Bool) -> CGFloat {
-        regularWidth ? 130 : cellCap
+        #if os(tvOS)
+        // A lesson's 3×3 board on a television, capped at 130, is a few
+        // coins in the middle of the screen. The height decides instead.
+        return 240
+        #else
+        return regularWidth ? 130 : cellCap
+        #endif
     }
 }
 

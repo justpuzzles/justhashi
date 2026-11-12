@@ -34,6 +34,18 @@ nonisolated enum TutorialPuzzles {
 
     // MARK: - Lesson 0: the rules
 
+    // The remote cannot drag: on Apple TV the lesson names the buttons.
+    #if os(tvOS)
+    private static let firstBridgeText =
+        "The 2 is picked up. Press right, toward the 4, to draw your first bridge."
+    private static let secondBridgeText =
+        "A corridor can carry a second bridge. Press right again to make it a double."
+    #else
+    private static let firstBridgeText = "Drag from the 2 toward the 4 to draw your first bridge."
+    private static let secondBridgeText =
+        "A corridor can carry a second bridge. Drag the same way again to make it a double."
+    #endif
+
     /// ```
     /// 2 . 4 . 1
     ///     |
@@ -60,9 +72,9 @@ nonisolated enum TutorialPuzzles {
                 .say("Hashi is played on islands. The number on an island says exactly how many bridges touch it, no more and no fewer."),
                 .sayHighlighting("Bridges run along these corridors: straight lines, up-down or left-right, never diagonal.",
                                  islands: [0, 1], edges: [edge(p, 0, 1)]),
-                .requireBridge("Drag from the 2 toward the 4 to draw your first bridge.",
+                .requireBridge(firstBridgeText,
                                edge: edge(p, 0, 1), count: 1),
-                .requireBridge("A corridor can carry a second bridge. Drag the same way again to make it a double.",
+                .requireBridge(secondBridgeText,
                                edge: edge(p, 0, 1), count: 2),
                 .say("That double finishes the 2, and its ring closes. The rings are worth watching: each one shows how much its island still needs."),
                 .requireBridge("The 1 on the right needs a single bridge. Connect it to the 4.",

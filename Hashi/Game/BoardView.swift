@@ -24,6 +24,12 @@ struct BoardView: View {
     /// Apple TV: the board takes focus when it appears (a game). Lessons lead
     /// with their text, so their boards leave focus to the screen.
     var claimsFocus = false
+    /// Apple TV: false takes the islands out of the focus chain, so a lesson
+    /// can park focus on its Next button while it talks.
+    var isInteractive = true
+    /// Apple TV: the island focus should jump to when this changes (the one a
+    /// lesson is pointing at). Elsewhere it is ignored.
+    var focusTarget: Int? = nil
     var onTapIsland: (Int) -> Void
     var onCycleEdge: (Int) -> Void
 
@@ -72,8 +78,8 @@ struct BoardView: View {
         }
         .onAppear {
             #if os(tvOS)
-            if claimsFocus {
-                focusedIsland = game.selected ?? game.puzzle.islands.first?.id
+            if claimsFocus && isInteractive {
+                focusedIsland = focusTarget ?? game.selected ?? game.puzzle.islands.first?.id
             }
             #endif
             if reduceMotion {
@@ -175,7 +181,7 @@ struct BoardView: View {
             // Focus is the cursor. While an island is picked up, it is the
             // only focus stop on the board, so an arrow cannot walk off it:
             // it draws a bridge instead (`onMoveCommand`).
-            .focusable(game.selected == nil || game.selected == island.id)
+            .focusable(isInteractive && (game.selected == nil || game.selected == island.id))
             .focused($focusedIsland, equals: island.id)
             .onTapGesture { onTapIsland(island.id) }
             .onMoveCommand(perform: game.selected == island.id ? { direction in
@@ -193,6 +199,15 @@ struct BoardView: View {
         }
         #if os(tvOS)
         .onChange(of: focusedIsland) { _, island in cursor = island }
+        .onChange(of: isInteractive) { _, interactive in
+            // Focus moves only once the islands can take it again.
+            if interactive {
+                focusedIsland = focusTarget ?? game.selected ?? game.puzzle.islands.first?.id
+            }
+        }
+        .onChange(of: focusTarget) { _, target in
+            if isInteractive, let target { focusedIsland = target }
+        }
         #endif
     }
 

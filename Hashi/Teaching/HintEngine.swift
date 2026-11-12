@@ -122,7 +122,11 @@ struct HintEngine {
         case .highlight:
             text = "One of the highlighted corridors is carrying too much. Something has to come off."
         case .resolution:
+            #if os(tvOS)
+            text = "This corridor carries more bridges than the solution allows. Pick up one of its islands and press toward the other until it clears."
+            #else
             text = "This corridor carries more bridges than the solution allows. Tap it until it clears."
+            #endif
         }
         return Hint(level: level,
                     application: TechniqueApplication(technique: .fullIsland,

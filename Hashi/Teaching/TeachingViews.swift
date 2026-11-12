@@ -229,27 +229,111 @@ private struct TutorialContent: View {
     let onFinished: () -> Void
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
+    /// Whether the islands take focus: only while the lesson waits for a
+    /// bridge. It follows `showsNextButton` a beat late on the way in, so the
+    /// Select that pressed Next is spent before an island can receive one
+    /// (the step has already picked its island up, and a second Select would
+    /// put it down again).
+    @State private var boardLive = false
+    /// Apple TV: when the islands leave the focus chain, focus has nowhere to
+    /// go by itself and the remote goes dead; it is sent to Next.
+    @FocusState private var nextFocused: Bool
+
     var body: some View {
+        content
+            .onChange(of: engine.finished) { _, finished in
+                if finished { onFinished() }
+            }
+            .task(id: engine.showsNextButton) {
+                if engine.showsNextButton {
+                    boardLive = false
+                    nextFocused = true
+                } else {
+                    try? await Task.sleep(for: .milliseconds(350))
+                    boardLive = true
+                }
+            }
+    }
+
+    private var board: some View {
+        BoardView(
+            game: engine.game,
+            highlightedIslands: engine.highlightedIslands,
+            highlightedEdges: engine.highlightedEdges,
+            claimsFocus: true,
+            // While the lesson talks, focus belongs to Next; when it asks for
+            // a bridge, focus lands on the island it is pointing at.
+            isInteractive: boardLive,
+            focusTarget: boardLive ? engine.highlightedIslands.min() : nil,
+            onTapIsland: { engine.handleTapIsland($0) },
+            onCycleEdge: { engine.handleCycleEdge($0) }
+        )
+    }
+
+    #if os(tvOS)
+    /// Side by side: a lesson board under a strip of text at the bottom of a
+    /// television is small and the text is a squint. The board takes the
+    /// height, the lesson reads in a column beside it.
+    private var content: some View {
+        HStack(alignment: .center, spacing: 60) {
+            board
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            VStack(alignment: .leading, spacing: 32) {
+                Text(engine.message)
+                    .font(.title3)
+                    .foregroundStyle(Theme.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .animation(nil, value: engine.stepIndex)
+                if engine.showsNextButton {
+                    nextButton
+                } else {
+                    Text(engine.game.selected == nil
+                         ? "Select picks up an island."
+                         : "Press a direction to draw a bridge, again for a double.\nSelect puts it down.")
+                        .font(.callout)
+                        .foregroundStyle(Theme.inkSoft)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(40)
+            .frame(width: 620, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(Theme.surface))
+            .offset(x: engine.wiggle ? 8 : 0)
+            .animation(Motion.reject, value: engine.wiggle)
+        }
+        .padding(.horizontal, 80)
+        .padding(.vertical, 40)
+    }
+    #else
+    private var content: some View {
         VStack(spacing: 0) {
             Spacer(minLength: 0)
-            BoardView(
-                game: engine.game,
-                highlightedIslands: engine.highlightedIslands,
-                highlightedEdges: engine.highlightedEdges,
-                onTapIsland: { engine.handleTapIsland($0) },
-                onCycleEdge: { engine.handleCycleEdge($0) }
-            )
-            .frame(maxWidth: Metrics.boardWidth(regularWidth: horizontalSizeClass == .regular),
-                   maxHeight: Metrics.boardWidth(regularWidth: horizontalSizeClass == .regular))
-            .padding(.horizontal, 8)
+            board
+                .frame(maxWidth: Metrics.boardWidth(regularWidth: horizontalSizeClass == .regular),
+                       maxHeight: Metrics.boardWidth(regularWidth: horizontalSizeClass == .regular))
+                .padding(.horizontal, 8)
             Spacer(minLength: 0)
         }
         .safeAreaInset(edge: .bottom) {
             messageCard
         }
-        .onChange(of: engine.finished) { _, finished in
-            if finished { onFinished() }
+    }
+    #endif
+
+    private var nextButton: some View {
+        Button {
+            engine.next()
+        } label: {
+            Text(isLastStep ? "Finish" : "Next")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(Theme.onBridge)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 11)
+                .background(RoundedRectangle(cornerRadius: 12).fill(Theme.bridge))
         }
+        .buttonStyle(.hashi)
+        .focused($nextFocused)
     }
 
     private var messageCard: some View {
@@ -260,17 +344,7 @@ private struct TutorialContent: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .animation(nil, value: engine.stepIndex)
             if engine.showsNextButton {
-                Button {
-                    engine.next()
-                } label: {
-                    Text(isLastStep ? "Finish" : "Next")
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(Theme.onBridge)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 11)
-                        .background(RoundedRectangle(cornerRadius: 12).fill(Theme.bridge))
-                }
-                .buttonStyle(.hashi)
+                nextButton
             }
         }
         .padding(16)
@@ -319,6 +393,9 @@ struct PracticeView: View {
             if !entitlements.isUnlocked {
                 LockedFeatureView(feature: .practiceDrills)
             } else if let game {
+                #if os(tvOS)
+                tvDrill(game)
+                #else
                 VStack(spacing: 0) {
                     Text(TechniqueContent.summary(for: technique))
                         .font(.footnote)
@@ -348,23 +425,24 @@ struct PracticeView: View {
                                    puzzle: game.puzzle)
                     }
                 }
+                #endif
             }
         }
         .navigationTitle(technique.displayName)
         .navigationTitleDisplay(.inline)
         .swipeBackDisabled()
+        #if !os(tvOS)
         .toolbar {
             ToolbarItem(placement: .primaryTrailing) {
                 Button {
-                    guard let game else { return }
-                    usedHint = true
-                    hint = engine.hint(for: game, mastery: mastery)
+                    askForHint()
                 } label: {
                     Image(systemName: "lightbulb")
                 }
                 .accessibilityLabel("Hint")
             }
         }
+        #endif
         .task(id: completed) {
             // Guard before generating: a drill search runs the generator with
             // an `accepts:` predicate, and this route is reachable with a stale
@@ -391,6 +469,62 @@ struct PracticeView: View {
             }
         }
     }
+
+    private func askForHint() {
+        guard let game else { return }
+        usedHint = true
+        hint = engine.hint(for: game, mastery: mastery)
+    }
+
+    #if os(tvOS)
+    /// Board at full height, the drill's idea and Hint in a column beside it:
+    /// a toolbar is a focus trap on tvOS, and a banner under a full-height
+    /// board has nowhere to go.
+    private func tvDrill(_ game: HashiGame) -> some View {
+        HStack(alignment: .center, spacing: 60) {
+            BoardView(
+                game: game,
+                highlightedIslands: Set(hint?.highlightIslands ?? []),
+                highlightedEdges: Set(hint?.highlightEdges ?? []),
+                claimsFocus: true,
+                onTapIsland: { game.tapIsland($0) },
+                onCycleEdge: { cycle($0, game: game) }
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            VStack(alignment: .leading, spacing: 28) {
+                Text(TechniqueContent.summary(for: technique))
+                    .font(.title3)
+                    .foregroundStyle(Theme.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let hint {
+                    HintBanner(hint: hint,
+                               onMore: { escalate(game: game) },
+                               onApply: hint.level == .resolution ? { apply(game: game) } : nil,
+                               onDismiss: { self.hint = nil },
+                               onUnlock: { paywall.present(.teachingHints) },
+                               puzzle: game.puzzle)
+                } else {
+                    Button { askForHint() } label: {
+                        Label("Hint", systemImage: "lightbulb")
+                    }
+                    .disabled(game.selected != nil)
+                }
+                Spacer()
+                Text(game.selected == nil
+                     ? "Select picks up an island.\nMenu goes back."
+                     : "Press a direction to draw a bridge, again for a double.\nSelect or Menu puts it down.")
+                    .font(.callout)
+                    .foregroundStyle(Theme.inkSoft)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(width: 560, alignment: .leading)
+            // Any press right off the board lands here, whatever its height.
+            .focusSection()
+        }
+        .padding(.horizontal, 80)
+        .padding(.vertical, 40)
+    }
+    #endif
 
     private func cycle(_ edge: Int, game: HashiGame) {
         let outcome = game.cycleBridge(edge: edge)

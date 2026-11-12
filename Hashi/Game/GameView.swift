@@ -95,28 +95,11 @@ struct GameView: View {
             canUndo: game.canUndo && game.phase == .playing, undo: undo,
             canHint: game.phase == .playing, hint: requestHint))
         #endif
+        #if !os(tvOS)
         .safeAreaInset(edge: .bottom) {
-            if let hint {
-                HintBanner(
-                    hint: hint,
-                    onMore: {
-                        withAnimation(Motion.overlay) {
-                            self.hint = hintEngine.escalate(hint, for: game, mastery: mastery,
-                                                            policy: hintPolicy)
-                        }
-                    },
-                    onApply: hint.level == .resolution && !hint.isErrorHint ? {
-                        game.apply(hint.application)
-                        withAnimation(Motion.overlay) { self.hint = nil }
-                    } : nil,
-                    onDismiss: {
-                        withAnimation(Motion.overlay) { self.hint = nil }
-                    },
-                    onUnlock: { paywall.present(.teachingHints) },
-                    puzzle: game.puzzle
-                )
-            }
+            if let hint { hintBanner(hint) }
         }
+        #endif
         // The save must be written as the player works: board change, scene
         // backgrounding, and disappear. Saving only on phase change silently
         // loses everything — a game started and never paused never changes
@@ -196,6 +179,27 @@ struct GameView: View {
         #endif
     }
 
+    private func hintBanner(_ hint: Hint) -> some View {
+        HintBanner(
+            hint: hint,
+            onMore: {
+                withAnimation(Motion.overlay) {
+                    self.hint = hintEngine.escalate(hint, for: game, mastery: mastery,
+                                                    policy: hintPolicy)
+                }
+            },
+            onApply: hint.level == .resolution && !hint.isErrorHint ? {
+                game.apply(hint.application)
+                withAnimation(Motion.overlay) { self.hint = nil }
+            } : nil,
+            onDismiss: {
+                withAnimation(Motion.overlay) { self.hint = nil }
+            },
+            onUnlock: { paywall.present(.teachingHints) },
+            puzzle: game.puzzle
+        )
+    }
+
     #if os(tvOS)
     /// The column beside the board: clock, size, Hint and Undo, and how the
     /// remote plays.
@@ -208,11 +212,18 @@ struct GameView: View {
             Text("\(boardSize.label) · \(game.difficultyForRecords.label)")
                 .font(.title3)
                 .foregroundStyle(Theme.inkSoft)
+            if let hint {
+                // In the column, not under the board: the board has the
+                // full height on a television.
+                hintBanner(hint)
+            }
             remoteControls
             Spacer()
             remoteGuide
         }
         .frame(width: 480, alignment: .leading)
+        // Any press left off the board lands here, whatever its height.
+        .focusSection()
     }
 
     /// How the remote plays.
